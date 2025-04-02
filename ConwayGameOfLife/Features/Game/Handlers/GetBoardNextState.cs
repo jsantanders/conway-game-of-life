@@ -6,12 +6,14 @@ using Serilog;
 
 namespace ConwayGameOfLife.Features.Game.Handlers;
 
-public class GetBoardStepState
+/// <summary>
+/// Gets the next board state, this action mutates the current state of the board
+/// </summary>
+public static class GetBoardNextState
 {
     public static async Task<Results<Ok<NextStateBoardResponse>, ProblemHttpResult>> Handler(
         [FromServices] AppDbContext dbContext,
-        [FromRoute] Guid id,
-        [FromRoute] int steps
+        [FromRoute] Guid id
     )
     {
         try
@@ -19,20 +21,11 @@ public class GetBoardStepState
             var board = await dbContext.Boards.FindAsync(id);
             if (board == null)
             {
+                Log.Information("Board {id} not found", id);
                 return TypedResults.Problem(title: "Board not found.", statusCode: StatusCodes.Status404NotFound);
             }
-            if (steps <= 0)
-            {
-                return TypedResults.Problem(title: "Invalid step value", statusCode: StatusCodes.Status400BadRequest);
-            }
 
-            var nextCells = new List<List<bool>>();
-            for (var i = 0; i < steps; i++)
-            {
-                nextCells = board.GetNextGeneration();
-            }
-
-            board.State = JsonSerializer.Serialize(nextCells);
+            var nextCells = board.GetNextGeneration();
             await dbContext.SaveChangesAsync();
 
             return TypedResults.Ok(new NextStateBoardResponse(nextCells));
@@ -45,3 +38,5 @@ public class GetBoardStepState
         }
     }
 }
+
+public record NextStateBoardResponse(List<List<bool>> Cells);

@@ -1,5 +1,6 @@
 using Carter;
 using ConwayGameOfLife.Database;
+using ConwayGameOfLife.Middlewares;
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
@@ -26,6 +27,7 @@ using (var scope = app.Services.CreateScope())
 }
 app.MapCarter();
 app.UseSerilogRequestLogging();
+app.UseMiddleware<JsonExceptionHandlerMiddleware>();
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -36,3 +38,5 @@ if (app.Environment.IsDevelopment())
     });
 }
 app.Run();
+
+public partial class Program { }

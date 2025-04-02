@@ -6,7 +6,10 @@ using Serilog;
 
 namespace ConwayGameOfLife.Features.Game.Handlers;
 
-public class GetBoardFinalState
+/// <summary>
+/// Gets the final board state, this action mutates the current state of the board
+/// </summary>
+public static class GetBoardFinalState
 {
     public static async Task<Results<Ok<NextStateBoardResponse>, ProblemHttpResult>> Handler(
         [FromServices] AppDbContext dbContext,
@@ -17,9 +20,21 @@ public class GetBoardFinalState
         try
         {
             var maxIter = maxAttempts ?? 100;
+            
+            if (maxIter > 1_000_000)
+            {
+                maxIter = 1_000_000;
+            }
+            if (maxIter < 1)
+            {
+                return TypedResults.Problem(title: "Invalid number of iterations.",
+                    statusCode: StatusCodes.Status400BadRequest);
+            }
+
             var board = await dbContext.Boards.FindAsync(id);
             if (board == null)
             {
+                Log.Information("Board {id} not found", id);
                 return TypedResults.Problem(title: "Board not found.", statusCode: StatusCodes.Status404NotFound);
             }
 
@@ -34,19 +49,16 @@ public class GetBoardFinalState
 
                 if (!seenStates.Add(nextGenStr))
                 {
-                    board.State = nextGenStr;
                     finalState = nextGen;
                     concluded = true;
                     break;
                 }
-
-                board.State = nextGenStr;
             }
-            
+
             if (!concluded)
             {
                 return TypedResults.Problem(
-                    title:"Board did not reach a steady or cycling state after the maximum attempts.",
+                    title: "Board did not reach a steady or cycling state after the maximum attempts.",
                     statusCode: StatusCodes.Status400BadRequest
                 );
             }

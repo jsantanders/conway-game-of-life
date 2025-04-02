@@ -9,24 +9,23 @@ using Serilog;
 
 namespace ConwayGameOfLife.Features.Game.Handlers;
 
+/// <summary>
+/// Creates a board from a state requested by the client
+/// </summary>
 public static class CreateBoardFromState
 {
-    public static async Task<Results<Ok<BoardResponse>, ProblemHttpResult>> Handler(
+    public static async Task<Results<Created<BoardResponse>, ProblemHttpResult>> Handler(
         [FromServices] AppDbContext dbContext,
         [FromBody] [Validate] BoardRequest req
     )
     {
         try
         {
-            var board = new Board
-            {
-                Id = Guid.NewGuid(),
-                State = JsonSerializer.Serialize(req.Cells)
-            };
+            var board = Board.Create(req.Cells);
             dbContext.Boards.Add(board);
             await dbContext.SaveChangesAsync();
 
-            return TypedResults.Ok(new BoardResponse(board.Id));
+            return TypedResults.Created($"boards/{board.Id}/current", new BoardResponse(board.Id));
         }
         catch (Exception e)
         {
@@ -50,6 +49,11 @@ public class BoardRequestValidator : AbstractValidator<BoardRequest>
             {
                 var colCount = c[0].Count;
                 return c.All(row => row.Count == colCount);
-            }).WithMessage("All rows in the board must have the same number of columns.");
+            }).WithMessage("All rows in the board must have the same number of columns.")
+            .Must(c =>
+            {
+                if (c.Count > 1000 || c[0].Count > 1000) return false;
+                return true;
+            }).WithMessage("Max game board size is 1000");
     }
 }
